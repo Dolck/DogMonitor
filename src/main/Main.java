@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.sheigutn.pushbullet.Pushbullet;
 import com.github.sheigutn.pushbullet.items.channel.OwnChannel;
-import com.github.sheigutn.pushbullet.items.device.Device;
 import com.github.sheigutn.pushbullet.items.push.sent.Direction;
 import com.github.sheigutn.pushbullet.items.push.sent.defaults.NotePush;
 import com.github.sheigutn.pushbullet.stream.PushbulletWebsocketClient;
@@ -37,13 +36,8 @@ public class Main {
 		String apitoken = args[0];
 		Pushbullet pushbullet = new Pushbullet(apitoken);
 		pushbullet.getNewPushes(); //clear new pushes
-		List<Device> devices = pushbullet.getDevices();
-		for(Device d: devices){
-			log.info("device: {}", d.getNickname());
-		}
 		
 		OwnChannel c = pushbullet.getOwnChannel(args[1]);
-		log.info("channel: {}", c);
 		
 		final GpioController gpio = GpioFactory.getInstance();
 		final GpioPinDigitalInput inPin = gpio.provisionDigitalInputPin(RaspiPin.GPIO_00); // listening at pin 0
@@ -56,9 +50,7 @@ public class Main {
 			@Override
 			public void handle(Pushbullet pb, StreamMessage message) {
 				
-				StreamMessageType type = message.getType();
-				switch(type){
-				case TICKLE:
+				if(message.getType() == StreamMessageType.TICKLE){
 					TickleStreamMessage tsm = (TickleStreamMessage)message;
 					if(tsm.getSubType().equals("push")){
 						List<NotePush> newPushes = pb.getNewPushes(NotePush.class);
@@ -78,13 +70,7 @@ public class Main {
 								}
 							}
 						}
-						break;
 					}
-				case PUSH:
-				case NOP:
-				default:
-//					log.debug("Unintresting message, {}", message.toString());
-					break;
 				}
 				
 			}
@@ -92,11 +78,7 @@ public class Main {
 		while(true){
 			try {
 				Thread.sleep(1000000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			} catch (InterruptedException e) { }
 		}
 	}
-
 }
