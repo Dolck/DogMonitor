@@ -15,16 +15,16 @@ import com.github.sheigutn.pushbullet.stream.PushbulletWebsocketListener;
 import com.github.sheigutn.pushbullet.stream.message.StreamMessage;
 import com.github.sheigutn.pushbullet.stream.message.StreamMessageType;
 import com.github.sheigutn.pushbullet.stream.message.TickleStreamMessage;
-import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
-import com.pi4j.io.gpio.event.GpioPinListenerDigital;
+import com.pi4j.io.gpio.GpioController;
+import com.pi4j.io.gpio.GpioFactory;
+import com.pi4j.io.gpio.GpioPinDigitalInput;
+import com.pi4j.io.gpio.RaspiPin;
 
 public class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
 	
-	
 	/**
-	 * 
 	 * @param args
 	 * 			args[0] = pushbullet api token
 	 * 			args[1] = pushbullet channel tag
@@ -45,7 +45,9 @@ public class Main {
 		OwnChannel c = pushbullet.getOwnChannel(args[1]);
 		log.info("channel: {}", c);
 		
-		
+		final GpioController gpio = GpioFactory.getInstance();
+		final GpioPinDigitalInput inPin = gpio.provisionDigitalInputPin(RaspiPin.GPIO_00); // listening at pin 0
+		final SoundListener sl = new SoundListener(c);
 		
 		PushbulletWebsocketClient pwc = pushbullet.createWebsocketClient();
 		pwc.connect();
@@ -60,29 +62,41 @@ public class Main {
 					TickleStreamMessage tsm = (TickleStreamMessage)message;
 					if(tsm.getSubType().equals("push")){
 						List<NotePush> newPushes = pb.getNewPushes(NotePush.class);
-						newPushes.stream().filter(np -> np.getDirection().equals(Direction.INCOMING)).forEach(np -> {
-							String body = np.getBody().trim();
-							if(body.equalsIgnoreCase("start")){
-								log.info("START");
-								//TODO: add Soundlistener if not already active
-								np.dismiss();
-							}else if(body.equalsIgnoreCase("stop")){
-								log.info("STOP");
-								//TODO: remove Soundlistener if not already active
-								np.dismiss();
+						for(NotePush np : newPushes){
+							if(np.getDirection().equals(Direction.INCOMING)){
+								String body = np.getBody().trim();
+								if(body.equalsIgnoreCase("start")){
+									log.info("START");
+									//make sure we only have one listener aktive
+									gpio.removeAllListeners();
+									gpio.addListener(sl, inPin);
+									np.dismiss();
+								}else if(body.equalsIgnoreCase("stop")){
+									log.info("STOP");
+									gpio.removeAllListeners();
+									np.dismiss();
+								}
 							}
-						});
+						}
 						break;
 					}
 				case PUSH:
 				case NOP:
 				default:
-					log.debug("Unintresting message, {}", message.toString());
+//					log.debug("Unintresting message, {}", message.toString());
 					break;
 				}
 				
 			}
 		});
+		while(true){
+			try {
+				Thread.sleep(1000000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 }
