@@ -37,15 +37,15 @@ public class Main {
 		Pushbullet pushbullet = new Pushbullet(apitoken);
 		pushbullet.getNewPushes(); //clear new pushes
 		
-		OwnChannel c = pushbullet.getOwnChannel(args[1]);
-		if(c == null){
+		OwnChannel channel = pushbullet.getOwnChannel(args[1]);
+		if(channel == null){
 			log.error("Invalid pushbullet channel {}", args[1]);
 			return;
 		}
 		
 		final GpioController gpio = GpioFactory.getInstance();
 		final GpioPinDigitalInput inPin = gpio.provisionDigitalInputPin(RaspiPin.GPIO_00); // listening at pin 0
-		final SoundListener sl = new SoundListener(c, 5, Duration.ofMinutes(5));
+		final SoundListener sl = new SoundListener(channel, 5, Duration.ofMinutes(5));
 		
 		PushbulletWebsocketClient pwc = pushbullet.createWebsocketClient();
 		pwc.connect();
@@ -59,30 +59,37 @@ public class Main {
 					if(tsm.getSubType().equals("push")){
 						for(NotePush np : pb.getNewPushes(NotePush.class)){
 							if(np.getDirection().equals(Direction.INCOMING)){
-								String body = np.getBody().trim();
-								if(body.equalsIgnoreCase("start")){
+								String body = np.getBody().trim().toUpperCase();
+								switch(body){
+								case "START":
 									log.info("START");
 									//make sure that there is maximum of one listener
 									gpio.removeAllListeners();
 									gpio.addListener(sl, inPin);
 									np.dismiss();
 									
-									c.pushNote("Started", "Monitor is active");
-								}else if(body.equalsIgnoreCase("stop")){
+									channel.pushNote("Started", "Monitor is active");
+									break;
+								case "STOP": 
 									log.info("STOP");
 									gpio.removeAllListeners();
 									np.dismiss();
 									sl.reset();
 									
-									c.pushNote("Stopped", "Monitor is now stopped");
-								}else if(body.equalsIgnoreCase("status")){
+									channel.pushNote("Stopped", "Monitor is now stopped");
+									break;
+								case "STATUS": 
 									if(inPin.getListeners().isEmpty()){
 										//Not active
-										c.pushNote("Status", "Monitor is NOT active");
+										channel.pushNote("Status", "Monitor is NOT active");
 									}else{
 										//Active
-										c.pushNote("Status", "Monitor is active");
+										channel.pushNote("Status", "Monitor is active");
 									}
+									break;
+								case "HELP": 
+									channel.pushNote("Help", "Available commands:\n -Help \n -Start \n -Stop \n -Status");
+									break;
 								}
 							}
 						}
