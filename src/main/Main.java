@@ -38,6 +38,10 @@ public class Main {
 		pushbullet.getNewPushes(); //clear new pushes
 		
 		OwnChannel c = pushbullet.getOwnChannel(args[1]);
+		if(c == null){
+			log.error("Invalid pushbullet channel {}", args[1]);
+			return;
+		}
 		
 		final GpioController gpio = GpioFactory.getInstance();
 		final GpioPinDigitalInput inPin = gpio.provisionDigitalInputPin(RaspiPin.GPIO_00); // listening at pin 0
@@ -53,20 +57,29 @@ public class Main {
 				if(message.getType() == StreamMessageType.TICKLE){
 					TickleStreamMessage tsm = (TickleStreamMessage)message;
 					if(tsm.getSubType().equals("push")){
-						List<NotePush> newPushes = pb.getNewPushes(NotePush.class);
-						for(NotePush np : newPushes){
+						for(NotePush np : pb.getNewPushes(NotePush.class)){
 							if(np.getDirection().equals(Direction.INCOMING)){
 								String body = np.getBody().trim();
 								if(body.equalsIgnoreCase("start")){
 									log.info("START");
-									//make sure we only have one listener aktive
+									//make sure that there is maximum of one listener
 									gpio.removeAllListeners();
 									gpio.addListener(sl, inPin);
 									np.dismiss();
+									
+									c.pushNote("Started", "Monitor is active");
 								}else if(body.equalsIgnoreCase("stop")){
 									log.info("STOP");
 									gpio.removeAllListeners();
 									np.dismiss();
+								}else if(body.equalsIgnoreCase("status")){
+									if(inPin.getListeners().isEmpty()){
+										//Not active
+										c.pushNote("Status", "Monitor is NOT active");
+									}else{
+										//Active
+										c.pushNote("Status", "Monitor is active");
+									}
 								}
 							}
 						}
