@@ -1,6 +1,6 @@
 package main;
 
-import java.util.List;
+import java.time.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +45,7 @@ public class Main {
 		
 		final GpioController gpio = GpioFactory.getInstance();
 		final GpioPinDigitalInput inPin = gpio.provisionDigitalInputPin(RaspiPin.GPIO_00); // listening at pin 0
-		final SoundListener sl = new SoundListener(c);
+		final SoundListener sl = new SoundListener(c, 5, Duration.ofMinutes(5));
 		
 		PushbulletWebsocketClient pwc = pushbullet.createWebsocketClient();
 		pwc.connect();
@@ -88,10 +88,5 @@ public class Main {
 				
 			}
 		});
-		while(true){
-			try {
-				Thread.sleep(1000000);
-			} catch (InterruptedException e) { }
-		}
 	}
 }
