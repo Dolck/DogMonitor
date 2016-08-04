@@ -3,11 +3,16 @@ package main;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.sheigutn.pushbullet.items.channel.OwnChannel;
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
 import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 
 public class SoundListener implements GpioPinListenerDigital {
+	
+	private static final Logger log = LoggerFactory.getLogger(SoundListener.class);
 	
 	private OwnChannel c;
 	
@@ -16,8 +21,8 @@ public class SoundListener implements GpioPinListenerDigital {
 	/*
 	 * Keeps current state
 	 */
-	private LocalDateTime start;
-	private int counter;
+	private volatile LocalDateTime start;
+	private volatile int counter;
 	
 	/*
 	 * threshold and timeunit decides when to notify on pushbullet channel
@@ -41,9 +46,10 @@ public class SoundListener implements GpioPinListenerDigital {
     public void handleGpioPinDigitalStateChangeEvent(GpioPinDigitalStateChangeEvent event) {
     	
     	if(event.getState().isHigh()){
+    		
     		LocalDateTime now = LocalDateTime.now();
-    		Duration sinceStart = Duration.between(start, now);
-    		if(start != null && sinceStart.compareTo(timeunit) < 0){
+    		log.debug("Sound detected, counter {}", counter);
+    		if(start != null && Duration.between(start, now).compareTo(timeunit) < 0){
     			counter++;
     		}else{
     			start = now;
@@ -51,10 +57,14 @@ public class SoundListener implements GpioPinListenerDigital {
     		}
     		
     		if(counter >= threshold){
-    			c.pushNote(TITLE, "The dog has barked " + counter + " in " + sinceStart);
-    			counter = 0;
-    			start = null;
+    			c.pushNote(TITLE, "The dog has barked " + counter + " in " + Duration.between(start, now));
+    			reset();
     		}
     	}
+    }
+    
+    public void reset(){
+    	counter = 0;
+    	start = null;
     }
 }

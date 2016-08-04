@@ -72,6 +72,9 @@ public class Main {
 									log.info("STOP");
 									gpio.removeAllListeners();
 									np.dismiss();
+									sl.reset();
+									
+									c.pushNote("Stopped", "Monitor is now stopped");
 								}else if(body.equalsIgnoreCase("status")){
 									if(inPin.getListeners().isEmpty()){
 										//Not active
@@ -88,5 +91,14 @@ public class Main {
 				
 			}
 		});
+		log.info("Started monitor");
+		while(true){
+			try {
+				Thread.sleep(1000000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 }
